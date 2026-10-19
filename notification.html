@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MELBA Notification Setup</title>
+<style>
+body {
+  margin: 0; padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #edf2f7; color: #173451;
+}
+main {
+  max-width: 550px; margin: auto;
+  padding: 24px; background: white;
+  border-radius: 14px;
+}
+h1 { color: #123b68; font-size: 24px; }
+button, textarea {
+  width: 100%; box-sizing: border-box;
+  padding: 12px; margin-top: 12px;
+  border-radius: 7px; font-size: 16px;
+}
+button {
+  background: #123b68; color: white;
+  border: 0; font-weight: bold;
+}
+textarea { min-height: 120px; }
+</style>
+</head>
+<body>
+<main>
+<h1>MELBA Machine Alerts</h1>
+<p>Register this phone to receive machine notifications.</p>
+
+<button id="register">Enable Notifications</button>
+<p id="status" role="status">Not registered.</p>
+
+<label for="token">Device Token</label>
+<textarea id="token" readonly
+  placeholder="Token will appear here"></textarea>
+<button id="copy">Copy Device Token</button>
+</main>
+
+<script type="module">
+import { initializeApp } from
+  "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+
+import {
+  getMessaging, getToken, isSupported, onMessage
+} from
+  "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_FIREBASE_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_FIREBASE_PROJECT_ID",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_FIREBASE_APP_ID"
+};
+
+const VAPID_KEY = "YOUR_PUBLIC_VAPID_KEY";
+
+const status = document.getElementById("status");
+const tokenBox = document.getElementById("token");
+let messaging = null;
+
+try {
+  if (await isSupported()) {
+    const app = initializeApp(firebaseConfig);
+    messaging = getMessaging(app);
+
+    onMessage(messaging, payload => {
+      const title = payload.notification?.title ||
+        "MELBA Machine Error";
+      const body = payload.notification?.body || "New machine error.";
+
+      status.textContent = title + ": " + body;
+
+      // Speech works while this page is active, not reliably when closed.
+      if ("speechSynthesis" in window) {
+        speechSynthesis.cancel();
+        speechSynthesis.speak(
+          new SpeechSynthesisUtterance(title + ". " + body)
+        );
+      }
+    });
+  } else {
+    status.textContent = "This browser does not support Firebase messaging.";
+  }
+} catch (err) {
+  status.textContent = "Setup error: " + err.message;
+}
+
+document.getElementById("register").addEventListener("click",
+async () => {
+  try {
+    if (!messaging) throw new Error("Messaging is unavailable.");
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      throw new Error("Notification permission was not granted.");
+    }
+
+    const registration = await navigator.serviceWorker.register(
+      "./firebase-messaging-sw.js"
+    );
+
+    await navigator.serviceWorker.ready;
+
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration
+    });
+
+    if (!token) throw new Error("Firebase did not return a token.");
+
+    tokenBox.value = token;
+    status.textContent =
+      "Phone registered. Copy this token to Apps Script.";
+
+  } catch (err) {
+    status.textContent = "Registration failed: " + err.message;
+  }
+});
+
+document.getElementById("copy").addEventListener("click", async () => {
+  if (!tokenBox.value) {
+    status.textContent = "Register your phone first.";
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(tokenBox.value);
+    status.textContent = "Token copied.";
+  } catch (err) {
+    tokenBox.select();
+    status.textContent = "Select and copy the token manually.";
+  }
+});
+</script>
+</body>
+</html>
