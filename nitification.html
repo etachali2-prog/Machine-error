@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MELBA Machine Error Report</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #edf2f7; color: #173451;
+}
+main {
+  max-width: 550px; margin: auto;
+  padding: 24px; background: white;
+  border-radius: 14px;
+  box-shadow: 0 5px 20px #0001;
+}
+h1 { color: #123b68; font-size: 25px; }
+label { display: block; margin-top: 16px; font-weight: bold; }
+input, select, textarea, button {
+  width: 100%; padding: 12px; margin-top: 7px;
+  border-radius: 7px; font-size: 16px;
+}
+input, select, textarea { border: 1px solid #bac8d6; }
+textarea { min-height: 120px; }
+button {
+  border: 0; background: #123b68;
+  color: white; font-weight: bold; cursor: pointer;
+}
+#status { line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+<h1>MELBA Machine Error Report</h1>
+<p>Report a machine fault to the Technical Department.</p>
+
+<form id="errorForm">
+  <label for="operator">Operator Name</label>
+  <input id="operator" required maxlength="100">
+
+  <label for="machine">Machine Name</label>
+  <select id="machine" required>
+    <option value="">Select machine</option>
+    <option>TBO-1</option>
+    <option>TBO-2</option>
+    <option>TBO-3 / ROTOMAN</option>
+    <option>Thermal CTP</option>
+    <option>Five Unit + Coater + Dryer</option>
+    <option>Perfect Binder</option>
+    <option>Guillotine</option>
+    <option>Folding Machine</option>
+    <option>Laminator</option>
+    <option>Generator</option>
+    <option>Compressor</option>
+    <option>Technotrans</option>
+    <option>Other</option>
+  </select>
+
+  <label for="error">Error Description</label>
+  <textarea id="error" required maxlength="1500"
+    placeholder="Describe the machine problem"></textarea>
+
+  <button id="submitBtn" type="submit">Submit Error</button>
+</form>
+<p id="status" role="status"></p>
+</main>
+
+<script>
+const API_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL";
+
+document.getElementById("errorForm").addEventListener(
+  "submit", async function(event) {
+    event.preventDefault();
+
+    const status = document.getElementById("status");
+    const button = document.getElementById("submitBtn");
+
+    if (API_URL.includes("YOUR_APPS_SCRIPT")) {
+      status.textContent = "Configure the Apps Script URL first.";
+      return;
+    }
+
+    const data = {
+      operator: document.getElementById("operator").value.trim(),
+      machine: document.getElementById("machine").value,
+      error: document.getElementById("error").value.trim()
+    };
+
+    button.disabled = true;
+    status.textContent = "Sending report...";
+
+    try {
+      await fetch(API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain;charset=UTF-8"
+        },
+        body: JSON.stringify(data)
+      });
+
+      status.textContent =
+        "Request sent. Check Google Sheets to confirm it was saved.";
+      document.getElementById("error").value = "";
+
+    } catch (err) {
+      status.textContent =
+        "Network error. Check your connection and retry.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+);
+</script>
+</body>
+</html>
